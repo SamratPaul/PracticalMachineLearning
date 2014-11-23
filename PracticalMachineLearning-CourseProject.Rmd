@@ -1,0 +1,181 @@
+## Machine Learning - Course Project
+================================================================================================================
+
+# Author - Samrat Paul
+# Nov,2014
+
+# Background
+
+  Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+  
+# Synopsis
+ 
+  The purpose of this analysis is to build a machine learning model from the sample data, which can be capable for predict in most accurately in which the exercise was performed. This is a classification problem into discrete categories.
+
+  
+# Data Processing
+
+```{r}
+  
+  library(caret)
+  library(randomForest)
+  library(rpart) # Regressive Partitioning and Regression trees
+  library(rpart.plot) # Decision Tree plot
+
+  # setting the overall seed for reproduceability
+  set.seed(1234)
+```
+
+
+
+In the following section of analysis [Training Data][1],[Test Data][2] are downloaded from the [source][3] and copied into
+local folder machine-learningproject-data.
+  
+  [1]:https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv/  " Training Data "
+  [2]:https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv/  " Test Data "
+  [3]:http://groupware.les.inf.puc-rio.br/har/ "Source"
+
+
+```{r}
+ # downloading file
+if (!file.exists("machine-learningproject-data/pml-training.csv")) {
+    download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", 
+        "machine-learningproject-data/pml-training.csv")
+}
+
+
+if (!file.exists("machine-learningproject-data/pml-testing.csv")) {
+    download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", 
+        "machine-learningproject-data/pml-testing.csv")
+}
+
+```
+
+
+After loading the traing and test data, it is important to find strings containing '#DIV/0!' in otherwise numeric data, a common sentinal error code for division by zero errors. So these error codes are changed to NA. With these all the missing values from
+training and testing data are removed.
+
+```{r}
+  
+# Loading the training data set into my R session replacing all missing with "NA"
+training.data <- read.csv("machine-learningproject-data/pml-training.csv", na.strings=c("NA","#DIV/0!", ""))
+
+# Loading the testing data set 
+testing.data <- read.csv('machine-learningproject-data/pml-testing.csv', na.strings=c("NA","#DIV/0!", ""))
+
+# Check dimensions for number of variables and number of observations
+dim(training.data)
+dim(testing.data)
+
+# Delete columns with all missing values
+training.data<-training.data[,colSums(is.na(training.data)) == 0]
+testing.data <-testing.data[,colSums(is.na(testing.data)) == 0]
+
+```
+
+```{r}
+
+# Some variables are irrelevant to our current project: user_name, raw_timestamp_part_1, raw_timestamp_part_,2 cvtd_timestamp, new_window, and  num_window (columns 1 to 7). We can delete these variables.
+training.data   <-training.data[,-c(1:7)]
+testing.data <-testing.data[,-c(1:7)]
+
+# and have a look at our new datasets:
+dim(training.data)
+dim(testingset)
+head(training.data)
+head(testing.data)
+
+```
+# Partitioning the training data set to allow cross-validation
+
+
+For cross-validation, the training data set is partionned into 2 sets: train.new (75%) and test.new (25%).
+
+
+```{r}
+        train.index  <- createDataPartition(y=training.data$classe, p=0.75, list=FALSE)
+        train.new    <- training.data[train.index, ] 
+        test.new     <- training.data[-train.index, ]
+        dim(train.new)
+        dim(test.new)
+       
+```
+
+# Data Overview
+
+In this section, a histogram of variable outcome has shown here.The variable "classe" contains 5 levels: A, B, C, D and E. A plot of the outcome variable will allow us to see the frequency of each levels in the subTraining data set and compare one another.
+
+```{r}
+
+
+plot(train.new$classe, col="red", main="Histogram  of the variable classe in Training Sample", xlab="classe", ylab="Frequency[classe] ")
+```
+
+
+From the above graph it can be observed that each of the classifications are within an order of magnitude of one another.Level A is the most frequent with more than 4000 occurrences while level D is the least frequent with about 2500 occurrences.
+
+# Prediction Model : With Decision Tree
+
+In this section of analysis a model we are trying to generate a model with Decision Tree model using the training data.
+
+```{r}
+model.with.decisionTree <- rpart(classe ~ ., data=train.new, method="class")
+
+# Predicting:
+prediction.with.decisionTree <- predict(model.with.decisionTree, test.new, type = "class")
+
+# Plot of the Decision Tree
+rpart.plot(model.with.decisionTree, main="Classification Tree", extra=102, under=TRUE, faclen=0)
+
+```
+
+```{r}
+# Test results on our subTesting data set:
+confusionMatrix(prediction.with.decisionTree, test.new$classe)
+```
+
+# Prediction model: with Random Forest
+
+Like previous section here we are going to use Random Forest Model for the same dataset used earlier section..
+
+```{r}
+     model.with.randomForest <- randomForest(classe ~. , data=train.new, method="class")
+
+# Predicting:
+prediction.with.randomForest <- predict(model.with.randomForest, test.new, type = "class")
+
+# Test results on subTesting data set:
+confusionMatrix(prediction.with.randomForest, test.new$classe)
+```
+
+# Decision
+
+We can see, Random Forest algorithm performed better than Decision Trees.
+Random Forest model produced accuracy 0.995 (95% CI: (0.993, 0.997)) where Decision Tree produced 0.739 (95% CI: (0.727, 0.752)). So, it would be better if we go ahead with the random Forest model. 
+
+
+# Submission
+For the test results, there are 20 samples asked to be classified. As from the above analysis, we can see that Random Forest Model has better prediction accuracy over Decission tree Model,hence this model is applied on the test data.Once the predictions are made from the chosen Random Forest model, the prediction vector is shown.
+
+```{r}
+  final.prediction <- predict(model.with.randomForest, testing.data, type="class")
+  final.prediction
+
+# Write files for submission
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(final.prediction)
+
+```
+
+
+
+
+
+
